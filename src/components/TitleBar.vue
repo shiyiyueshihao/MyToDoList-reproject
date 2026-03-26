@@ -14,6 +14,31 @@
 
     <!-- 右侧：窗口控制按钮 -->
     <div class="right-section">
+      <!-- 主题设置按钮 -->
+      <div class="control-btn settings-btn" @click="showThemeMenu = !showThemeMenu" title="设置主题">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="1"></circle>
+          <circle cx="19" cy="12" r="1"></circle>
+          <circle cx="5" cy="12" r="1"></circle>
+        </svg>
+      </div>
+      
+      <!-- 主题切换菜单 -->
+      <Transition name="slide-up">
+        <div v-if="showThemeMenu" class="theme-menu" @mouseleave="showThemeMenu = false">
+          <div 
+            v-for="theme in themes" 
+            :key="theme.id" 
+            class="theme-option" 
+            @click="setTheme(theme.id)"
+            :class="{ active: currentTheme === theme.id }"
+          >
+            <div class="theme-dot" :style="{ background: theme.color }"></div>
+            <span>{{ theme.name }}</span>
+          </div>
+        </div>
+      </Transition>
+
       <div class="control-btn minimize" @click="minimizeWindow" title="最小化">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
       </div>
@@ -29,8 +54,27 @@ import { onMounted, ref } from 'vue';
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 const appWindow = ref(null);
+const showThemeMenu = ref(false);
+const currentTheme = ref('tech');
+
+const themes = [
+  { id: 'tech', name: '科技感', color: '#007aff' },
+  { id: 'minimal', name: '简约版', color: '#475569' },
+  { id: 'pink', name: '桃花粉', color: '#fb7185' },
+  { id: 'black', name: '纯黑版', color: '#222222' }
+];
+
+const setTheme = (id) => {
+  currentTheme.value = id;
+  document.documentElement.setAttribute('data-theme', id);
+  localStorage.setItem('todo-theme', id);
+  showThemeMenu.value = false;
+};
 
 onMounted(async () => {
+  const savedTheme = localStorage.getItem('todo-theme');
+  if (savedTheme) setTheme(savedTheme);
+
   // 仅在 Tauri 环境下初始化窗口实例
   if (window.__TAURI_INTERNALS__) {
     try {
@@ -147,6 +191,55 @@ const closeWindow = async () => {
   .right-section {
     display: flex;
     gap: 8px;
+    position: relative;
+
+    .theme-menu {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 8px;
+      background: var(--bg-item);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 8px;
+      min-width: 120px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      z-index: 10000;
+      backdrop-filter: blur(10px);
+
+      .theme-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        &.active {
+          background: rgba(0, 144, 255, 0.1);
+          span {
+            color: var(--accent-color);
+            font-weight: 600;
+          }
+        }
+
+        .theme-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+        }
+
+        span {
+          font-size: 12px;
+          color: var(--text-primary);
+        }
+      }
+    }
 
     .control-btn {
       width: 28px;

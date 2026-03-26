@@ -2,11 +2,80 @@
   box-sizing: border-box;
 }
 
+:root {
+  /* Elegant Deep Tech Theme */
+  --bg-main: #060912; /* 更深的背景 */
+  --bg-item: #111827; /* 更亮的卡片 */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --accent-color: #38bdf8;
+  --border-color: rgba(56, 189, 248, 0.2);
+  --shadow-color: rgba(0, 0, 0, 0.6);
+  --item-radius: 12px;
+  --input-bg: #1e293b; /* 科技感输入框背景 */
+}
+
+[data-theme='minimal'] {
+  --bg-main: #f1f5f9; 
+  --bg-item: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --accent-color: #334155;
+  --border-color: #e2e8f0;
+  --shadow-color: rgba(0, 0, 0, 0.05);
+  --input-bg: #f8fafc;
+}
+
+[data-theme='pink'] {
+  --bg-main: #fff1f2; 
+  --bg-item: #ffffff;
+  --text-primary: #9d174d;
+  --text-secondary: #db2777;
+  --accent-color: #f472b6;
+  --border-color: #ffe4e6;
+  --shadow-color: rgba(157, 23, 77, 0.08);
+  --input-bg: #fff1f2;
+}
+
+[data-theme='black'] {
+  --bg-main: #000000;
+  --bg-item: #1a1a1a; /* 稍微亮一点，增加对比 */
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --accent-color: #3f3f46;
+  --border-color: #27272a;
+  --shadow-color: rgba(0, 0, 0, 0.9);
+  --input-bg: #262626;
+}
+
+[data-theme='black'] .fab-add-btn {
+  background: #222 !important;
+  color: #fff !important;
+  border: 1px solid #444;
+}
+
+[data-theme='black'] .submit-btn {
+  background: #222 !important;
+  color: #fff !important;
+  border: 1px solid #444;
+}
+
 html, body, #app {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: transparent !important;
+  background-color: var(--bg-main) !important;
+  color: var(--text-primary);
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  transition: all 0.3s ease;
+}
+
+/* Background Grids for Tech Feel - Very Subtle */
+[data-theme='tech'] body {
+  background-image: 
+    linear-gradient(rgba(0, 122, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 122, 255, 0.015) 1px, transparent 1px);
+  background-size: 30px 30px;
 }

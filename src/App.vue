@@ -65,21 +65,20 @@ onMounted(async () => {
 .main-window {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(240, 245, 255, 0.5) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
+  background: var(--bg-main);
   display: flex;
   flex-direction: column;
   align-items: stretch;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--border-color);
+  transition: background-color 0.5s ease;
 }
 
 .main-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
   /* 科技感微弱内阴影 */
-  box-shadow: inset 0 0 40px rgba(0, 150, 255, 0.02);
+  box-shadow: inset 0 0 40px var(--shadow-color);
 }
 
 /* 
