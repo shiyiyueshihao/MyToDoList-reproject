@@ -172,14 +172,11 @@ const closeWindow = async () => {
     .app-title {
       font-size: 12px;
       font-weight: 600;
-      color: #3a4a5a;
+      color: var(--text-primary);
       letter-spacing: 1.2px;
       font-family: 'JetBrains Mono', 'Fira Code', monospace; /* 科技感字体 */
       text-transform: uppercase;
       opacity: 0.85;
-      background: linear-gradient(90deg, #3a4a5a, #0090ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
     }
   }
 
@@ -250,12 +247,12 @@ const closeWindow = async () => {
       border-radius: 4px;
       cursor: pointer;
       transition: all 0.3s ease;
-      color: rgba(60, 80, 100, 0.6);
+      color: var(--text-primary);
       border: 1px solid transparent;
 
       &:hover {
         background: rgba(0, 150, 255, 0.08);
-        color: #0080ff;
+        color: var(--accent-color);
         border-color: rgba(0, 150, 255, 0.2);
         box-shadow: 0 0 8px rgba(0, 150, 255, 0.1);
       }

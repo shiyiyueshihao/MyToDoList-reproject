@@ -34,26 +34,22 @@
             <button class="close-btn" @click="closeAddModal">×</button>
           </div>
 
-          <div class="modal-body">
-            <textarea 
-              v-model="newTodoText" 
-              placeholder="有什么新计划？可以直接拖入图片..." 
-              class="modal-textarea"
-              ref="todoTextarea"
-            ></textarea>
-
-            <!-- 待上传图片预览 -->
-            <div v-if="tempImages.length > 0" class="modal-temp-images">
-              <div v-for="(img, i) in tempImages" :key="i" class="temp-img-wrapper">
-                <img :src="img" />
-                <div class="remove-btn" @click="tempImages.splice(i, 1)">×</div>
-              </div>
-            </div>
+          <div class="modal-body" @click.self="focusEditor">
+            <div
+              ref="todoEditor"
+              contenteditable="true"
+              spellcheck="false"
+              class="modal-rich-editor edit-rich-input"
+              placeholder="有什么新计划？可以直接拖入或粘贴图片到文字中间..."
+              @paste="onPaste"
+              
+              @dblclick="handleEditClick"
+            ></div>
           </div>
 
           <div class="modal-footer">
             <div class="drag-hint">支持图片拖拽</div>
-            <button class="submit-btn" @click="addTodo" :disabled="!newTodoText.trim() && tempImages.length === 0">
+            <button class="submit-btn" @click="addTodo">
               确认添加
             </button>
           </div>
@@ -75,6 +71,64 @@ import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue';
 import TodoItem from '../components/TodoItem.vue';
 import ImageModal from '../components/ImageModal.vue';
 
+// IndexedDB 工具函数，用于替代 localStorage，避免 QuotaExceededError
+const DB_NAME = 'TodoAppDB';
+const STORE_NAME = 'todos_store';
+const TODOS_KEY = 'my-todos-v2';
+
+const initDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const saveTodosToDB = async (data) => {
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.put(JSON.parse(JSON.stringify(data)), TODOS_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.error('Failed to save to IndexedDB:', err);
+  }
+};
+
+const loadTodosFromDB = async () => {
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get(TODOS_KEY);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (err) {
+    console.error('Failed to load from IndexedDB:', err);
+    return null;
+  }
+};
+
+declare global {
+  interface Window {
+    isDraggingFile: boolean;
+    __TAURI_INTERNALS__: any;
+  }
+}
+window.isDraggingFile = false;
+
 const currentTheme = ref('tech');
 
 interface Todo {
@@ -95,11 +149,9 @@ const themes = [
 ];
 
 const todos = ref<Todo[]>([]);
-const newTodoText = ref('');
-const tempImages = ref<string[]>([]);
 const isDragging = ref(false);
 const showAddModal = ref(false);
-const todoTextarea = ref<HTMLTextAreaElement | null>(null);
+const todoEditor = ref<HTMLDivElement | null>(null);
 
 const showModal = ref(false);
 const modalImageUrl = ref('');
@@ -110,20 +162,80 @@ const formatTime = (date: Date) => {
   const d = String(date.getDate()).padStart(2, '0');
   const h = String(date.getHours()).padStart(2, '0');
   const min = String(date.getMinutes()).padStart(2, '0');
-  return `${y}-${m}-${d} ${h}:${min}`;
+  return `${y}年${m}月${d}日 ${h}:${min}`;
+};
+
+const focusEditor = () => {
+  if (todoEditor.value) {
+    todoEditor.value.focus();
+  }
+};
+
+const insertImageAtCursor = (dataUrl: string) => {
+  if (todoEditor.value) {
+    todoEditor.value.focus();
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.className = 'inline-rich-img';
+      range.insertNode(img);
+      
+      // 光标移到图片后
+      range.setStartAfter(img);
+      range.setEndAfter(img);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else {
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.className = 'inline-rich-img';
+      todoEditor.value.appendChild(img);
+      
+      const range = document.createRange();
+      range.setStartAfter(img);
+      range.setEndAfter(img);
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  }
+};
+
+const onPaste = async (e: ClipboardEvent) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf('image') !== -1) {
+      e.preventDefault();
+      const file = items[i].getAsFile();
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            insertImageAtCursor(event.target.result as string);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  }
 };
 
 const addTodo = () => {
-  if (!newTodoText.value.trim() && tempImages.value.length === 0) return;
+  const content = todoEditor.value?.innerHTML || '';
+  if (!content.trim() || content === '<br>') return;
   
   const newTodo: Todo = {
     id: Date.now().toString(),
-    text: newTodoText.value,
+    text: content,
     completed: false,
-    images: [...tempImages.value],
+    images: [], // 统一存入 text 中
     subTodos: [],
     updatedAt: formatTime(new Date()),
-    color: '' // 默认为空，随主题色走
+    color: '' 
   };
   
   todos.value.unshift(newTodo);
@@ -132,14 +244,13 @@ const addTodo = () => {
 
 const closeAddModal = () => {
   showAddModal.value = false;
-  newTodoText.value = '';
-  tempImages.value = [];
+  if (todoEditor.value) todoEditor.value.innerHTML = '';
 };
 
 watch(showAddModal, (val) => {
   if (val) {
     nextTick(() => {
-      todoTextarea.value?.focus();
+      todoEditor.value?.focus();
     });
   }
 });
@@ -156,38 +267,76 @@ const openImageModal = (url: string) => {
   showModal.value = true;
 };
 
+const handleEditClick = (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  if (target.tagName === 'IMG' && target.classList.contains('inline-rich-img')) {
+    openImageModal((target as HTMLImageElement).src);
+  }
+};
+
 // Tauri 原生拖放处理
 let unlistenDragDrop: any = null;
 
-const handleFiles = (files: string[]) => {
-  files.forEach(async (path) => {
-    // 检查是否为图片（简单通过后缀名）
-    if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path)) {
-      try {
-        const { convertFileSrc } = await import('@tauri-apps/api/core');
-        const assetUrl = convertFileSrc(path);
-        
-        // 通过 fetch 获取图片内容并转为 Base64
-        const response = await fetch(assetUrl);
-        const blob = await response.blob();
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          if (e.target?.result) {
-            if (showAddModal.value) {
-              tempImages.value.push(e.target.result as string);
-            } else {
-              showAddModal.value = true;
-              tempImages.value.push(e.target.result as string);
+const handleFiles = async (files: string[], position?: {x: number, y: number}) => {
+  if (window.__TAURI_INTERNALS__) {
+    try {
+      const { readFile } = await import('@tauri-apps/plugin-fs');
+      
+      for (const path of files) {
+        if (/\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(path)) {
+          try {
+            const contents = await readFile(path);
+            let binary = '';
+            const bytes = new Uint8Array(contents);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+              binary += String.fromCharCode(bytes[i]);
             }
+            const base64 = window.btoa(binary);
+            
+            const ext = path.split('.').pop()?.toLowerCase();
+            const mimeType = ext === 'jpg' ? 'jpeg' : ext;
+            const dataUrl = `data:image/${mimeType};base64,${base64}`;
+            
+            let target: Element | null = null;
+            if (position) {
+              const el = document.elementFromPoint(position.x, position.y);
+              if (el) target = el.closest('.edit-rich-input');
+            }
+            if (!target && document.activeElement && document.activeElement.classList.contains('edit-rich-input')) {
+              target = document.activeElement;
+            }
+
+            if (target) {
+              if (target instanceof HTMLElement) target.focus();
+              const img = document.createElement('img');
+              img.src = dataUrl;
+              img.className = 'inline-rich-img';
+              target.appendChild(img);
+              
+              // 将光标移到图片后
+              const range = document.createRange();
+              range.setStartAfter(img);
+              range.setEndAfter(img);
+              const selection = window.getSelection();
+              if (selection) {
+                selection.removeAllRanges();
+                selection.addRange(range);
+              }
+              
+              target.dispatchEvent(new Event('input', { bubbles: true }));
+            } else if (showAddModal.value) {
+              insertImageAtCursor(dataUrl);
+            }
+          } catch (e) {
+            console.error('Failed to read file:', e);
           }
-        };
-        reader.readAsDataURL(blob);
-      } catch (e) {
-        console.error('Failed to process dropped file:', e);
+        }
       }
+    } catch (err) {
+      console.error('Failed to import fs plugin:', err);
     }
-  });
+  }
 };
 
 const setupNativeDragDrop = async () => {
@@ -195,13 +344,13 @@ const setupNativeDragDrop = async () => {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     const appWindow = getCurrentWindow();
     unlistenDragDrop = await appWindow.onDragDropEvent((event) => {
-      if (event.payload.type === 'drop') {
-        const paths = event.payload.paths;
-        handleFiles(paths);
-      } else if (event.payload.type === 'enter') {
-        isDragging.value = true;
-      } else if (event.payload.type === 'leave' || event.payload.type === 'cancelled') {
-        isDragging.value = false;
+      if (event.payload.type === 'hover') {
+        window.isDraggingFile = true;
+      } else if (event.payload.type === 'drop') {
+        window.isDraggingFile = false;
+        handleFiles(event.payload.paths, event.payload.position);
+      } else {
+        window.isDraggingFile = false;
       }
     });
   }
@@ -227,15 +376,25 @@ const handleDrop = (e: DragEvent) => {
   }
 };
 
-onMounted(() => {
-  const savedTodos = localStorage.getItem('my-todos-v2');
-  if (savedTodos) {
-    try {
-      todos.value = JSON.parse(savedTodos);
-    } catch (e) {
-      console.error('Failed to parse todos:', e);
+onMounted(async () => {
+  // 1. 优先尝试从 IndexedDB 加载
+  const dbTodos = await loadTodosFromDB();
+  if (dbTodos) {
+    todos.value = dbTodos;
+  } else {
+    // 2. 如果 DB 中没有，尝试从旧版本 localStorage 迁移数据
+    const savedTodos = localStorage.getItem('my-todos-v2');
+    if (savedTodos) {
+      try {
+        todos.value = JSON.parse(savedTodos);
+        // 数据迁移后，为了释放 localStorage 空间可以将其移除（可选）
+        // localStorage.removeItem('my-todos-v2'); 
+      } catch (e) {
+        console.error('Failed to parse todos from localStorage:', e);
+      }
     }
   }
+  
   setupNativeDragDrop();
 });
 
@@ -244,7 +403,8 @@ onUnmounted(() => {
 });
 
 watch(todos, (newVal) => {
-  localStorage.setItem('my-todos-v2', JSON.stringify(newVal));
+  // 使用 IndexedDB 替代 localStorage，避免图片太多导致的配额超限报错
+  saveTodosToDB(newVal);
 }, { deep: true });
 </script>
 
@@ -381,68 +541,44 @@ watch(todos, (newVal) => {
     }
   }
 
-  .modal-textarea {
+  .modal-rich-editor {
     width: 100%;
-    height: 140px;
+    min-height: 140px;
+    max-height: 300px;
     background: rgba(0, 0, 0, 0.1);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 16px;
     color: var(--text-primary);
     font-size: 16px;
-    resize: none;
     outline: none;
     margin-bottom: 20px;
     transition: all 0.2s ease;
+    overflow-y: auto;
+    text-align: left;
+    line-height: 1.6;
 
     &:focus {
       border-color: var(--accent-color);
       background: rgba(0, 0, 0, 0.2);
       box-shadow: 0 0 0 4px var(--shadow-color);
     }
-  }
 
-  .modal-temp-images {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 20px;
+    &:empty:before {
+      content: attr(placeholder);
+      color: var(--text-secondary);
+      opacity: 0.5;
+    }
 
-    .temp-img-wrapper {
-      position: relative;
-      width: 70px;
-      height: 70px;
-      border-radius: 10px;
-      overflow: hidden;
-      border: 1px solid var(--border-color);
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-
-      .remove-btn {
-        position: absolute;
-        top: 4px;
-        right: 4px;
-        background: rgba(0, 0, 0, 0.5);
-        color: white;
-        width: 20px;
-        height: 20px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        cursor: pointer;
-        backdrop-filter: blur(4px);
-        
-        &:hover {
-          background: #ef4444;
-        }
-      }
+    :deep(.inline-rich-img) {
+      height: 1.5em;
+      width: auto;
+      vertical-align: bottom;
+      margin: 0 4px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: inline-block;
+      cursor: zoom-in;
     }
   }
 

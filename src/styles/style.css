@@ -16,24 +16,24 @@
 }
 
 [data-theme='minimal'] {
-  --bg-main: #f1f5f9; 
+  --bg-main: #cbd5e1; /* 调暗背景，增加对比度 */
   --bg-item: #ffffff;
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --accent-color: #334155;
-  --border-color: #e2e8f0;
-  --shadow-color: rgba(0, 0, 0, 0.05);
-  --input-bg: #f8fafc;
+  --border-color: #94a3b8;
+  --shadow-color: rgba(0, 0, 0, 0.15);
+  --input-bg: #f1f5f9;
 }
 
 [data-theme='pink'] {
-  --bg-main: #fff1f2; 
-  --bg-item: #ffffff;
-  --text-primary: #9d174d;
-  --text-secondary: #db2777;
-  --accent-color: #f472b6;
-  --border-color: #ffe4e6;
-  --shadow-color: rgba(157, 23, 77, 0.08);
+  --bg-main: #fecdd3; 
+  --bg-item: #fff1f2;
+  --text-primary: #881337;
+  --text-secondary: #be123c;
+  --accent-color: #fb7185;
+  --border-color: #fda4af;
+  --shadow-color: rgba(157, 23, 77, 0.15);
   --input-bg: #fff1f2;
 }
 
@@ -78,4 +78,36 @@ html, body, #app {
     linear-gradient(rgba(0, 122, 255, 0.015) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 122, 255, 0.015) 1px, transparent 1px);
   background-size: 30px 30px;
+}
+
+[data-theme='pink'] body {
+  background-color: #fecdd3 !important;
+  background-image: 
+    radial-gradient(#fb7185 1px, transparent 0),
+    radial-gradient(#fb7185 1px, #fecdd3 0);
+  background-size: 40px 40px;
+  background-position: 0 0, 20px 20px;
+  position: relative;
+}
+
+[data-theme='pink'] body::after {
+  content: '🌸';
+  position: fixed;
+  font-size: 150px;
+  bottom: -20px;
+  right: -20px;
+  opacity: 0.1;
+  pointer-events: none;
+  filter: grayscale(0.2);
+}
+
+[data-theme='pink'] body::before {
+  content: '🌸';
+  position: fixed;
+  font-size: 80px;
+  top: 20%;
+  left: -10px;
+  opacity: 0.05;
+  pointer-events: none;
+  transform: rotate(45deg);
 }
