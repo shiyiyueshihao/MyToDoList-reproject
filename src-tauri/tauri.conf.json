@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "mytodolist_app_package",
+  "productName": "SHIYIYUE-ToDoList",
   "version": "0.1.0",
   "identifier": "com.pengh.SHIYIYUE-ToDoList",
   "build": {
