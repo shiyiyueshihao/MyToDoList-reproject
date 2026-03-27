@@ -75,12 +75,11 @@ import ImageModal from '../components/ImageModal.vue';
 const DB_NAME = 'TodoAppDB';
 const STORE_NAME = 'todos_store';
 const TODOS_KEY = 'my-todos-v2';
-
-const initDB = () => {
+const initDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
+    request.onupgradeneeded = (e: IDBVersionChangeEvent) => {
+      const db = (e.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
       }
@@ -90,14 +89,25 @@ const initDB = () => {
   });
 };
 
-const saveTodosToDB = async (data) => {
+interface Todo {
+  id: string;
+  text: string;
+  completed: boolean;
+  images: string[];
+  subTodos: Todo[];
+  updatedAt: string;
+  color: string;
+}
+
+const saveTodosToDB = async (data: Todo[]): Promise<void> => {
   try {
     const db = await initDB();
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
       const store = tx.objectStore(STORE_NAME);
-      store.put(JSON.parse(JSON.stringify(data)), TODOS_KEY);
-      tx.oncomplete = () => resolve();
+      // 深拷贝一份数据以解除响应式绑定，防止 IndexedDB 序列化错误
+      store.put(JSON.parse(JSON.stringify(data)), TODOS_KEY); 
+      tx.oncomplete = () => resolve(); 
       tx.onerror = () => reject(tx.error);
     });
   } catch (err) {
@@ -105,14 +115,14 @@ const saveTodosToDB = async (data) => {
   }
 };
 
-const loadTodosFromDB = async () => {
+const loadTodosFromDB = async (): Promise<Todo[] | null> => {
   try {
     const db = await initDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
       const request = store.get(TODOS_KEY);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => resolve(request.result || null);
       request.onerror = () => reject(request.error);
     });
   } catch (err) {
@@ -129,19 +139,11 @@ declare global {
 }
 window.isDraggingFile = false;
 
-const currentTheme = ref('tech');
+// @ts-ignore
+const currentTheme = ref('tech');  // 声明未读取
 
-interface Todo {
-  id: string;
-  text: string;
-  completed: boolean;
-  images: string[];
-  subTodos: Todo[];
-  updatedAt: string;
-  color: string;
-}
-
-const themes = [
+// @ts-ignore
+const themes = [ // 声明未读取
   { id: 'tech', name: '科技感', color: '#007aff' },
   { id: 'minimal', name: '简约版', color: '#475569' },
   { id: 'pink', name: '桃花粉', color: '#fb7185' },
@@ -344,7 +346,7 @@ const setupNativeDragDrop = async () => {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     const appWindow = getCurrentWindow();
     unlistenDragDrop = await appWindow.onDragDropEvent((event) => {
-      if (event.payload.type === 'hover') {
+      if (event.payload.type === 'enter') {
         window.isDraggingFile = true;
       } else if (event.payload.type === 'drop') {
         window.isDraggingFile = false;
@@ -367,7 +369,7 @@ const handleDrop = (e: DragEvent) => {
         const reader = new FileReader();
         reader.onload = (event) => {
           if (event.target?.result) {
-            tempImages.value.push(event.target.result as string);
+            insertImageAtCursor(event.target.result as string);
           }
         };
         reader.readAsDataURL(file);

@@ -152,8 +152,6 @@ const isEditing = ref(false);
 const editDiv = ref(null);
 const subEditDiv = ref(null);
 const showAddSub = ref(false);
-const newSubText = ref('');
-const tempImages = ref([]);
 const isExpanded = ref(true);
 const isHoveringDrag = ref(false);
 
