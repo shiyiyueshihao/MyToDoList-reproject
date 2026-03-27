@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "SHIYIYUE_ToDoList",
+  "productName": "SHIYIYUE-ToDoList",
   "version": "0.1.0",
-  "identifier": "com.pengh.SHIYIYUE_ToDoList",
+  "identifier": "com.pengh.SHIYIYUE-ToDoList",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
