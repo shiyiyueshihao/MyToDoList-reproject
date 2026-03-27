@@ -37,17 +37,16 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
-  },
-  "plugins": {
-    "nsis": {
-      "installerIcon": "icons/icon.ico",
-      "installIcon": "icons/icon.ico",
-      "displayLanguage": "zh-Hans"
-    },
-    "wix": {
-      "language": "zh-CN",
-      "installerIcon": "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "languages": ["SimpChinese"]
+      },
+      "wix": {
+        "language": "zh-CN"
+      }
     }
   }
+
 }
