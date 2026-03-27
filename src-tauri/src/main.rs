@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    mytodolist_app_package_lib::run()
+    shiyiyue-todolist_lib::run()
 }

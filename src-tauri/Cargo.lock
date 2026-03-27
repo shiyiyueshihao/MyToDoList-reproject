@@ -2114,7 +2114,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mytodolist_app_package"
+name = "shiyiyue-todolist"
 version = "0.1.0"
 dependencies = [
  "serde",
