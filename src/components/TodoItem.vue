@@ -133,6 +133,9 @@
 
 <script setup>
 import { ref, nextTick, watch, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { locale } = useI18n();
 
 const props = defineProps({
   todo: Object,
@@ -161,6 +164,13 @@ const formatTime = (date) => {
   const d = String(date.getDate()).padStart(2, '0');
   const h = String(date.getHours()).padStart(2, '0');
   const min = String(date.getMinutes()).padStart(2, '0');
+
+  // 根据语言返回不同格式
+  if (locale.value === 'en-US') {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[date.getMonth()]} ${d}, ${y} ${h}:${min}`;
+  }
+
   return `${y}年${m}月${d}日 ${h}:${min}`;
 };
 
@@ -200,6 +210,9 @@ const stopEditing = () => {
 const onPaste = async (e) => {
   const items = e.clipboardData?.items;
   if (!items) return;
+
+  const targetEditor = e.currentTarget;
+
   for (let i = 0; i < items.length; i++) {
     if (items[i].type.indexOf('image') !== -1) {
       e.preventDefault();
@@ -207,7 +220,7 @@ const onPaste = async (e) => {
       if (file) {
         const reader = new FileReader();
         reader.onload = (event) => {
-          insertImageAtCursor(event.target.result);
+          insertImageAtCursor(event.target.result, targetEditor);
         };
         reader.readAsDataURL(file);
       }
@@ -275,15 +288,15 @@ const handleAddSub = () => {
     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
     text: content,
     completed: false,
-    images: [], 
+    images: [],
     subTodos: [],
     updatedAt: formatTime(new Date()),
-    color: '' 
+    color: ''
   };
-  
+
   if (!props.todo.subTodos) props.todo.subTodos = [];
-  props.todo.subTodos.push(newSub);
-  
+  props.todo.subTodos.unshift(newSub);
+
   if (subEditDiv.value) subEditDiv.value.innerHTML = '';
   showAddSub.value = false;
   isExpanded.value = true;
@@ -311,29 +324,40 @@ const handleDragLeave = (e) => {
   }
 };
 
-const insertImageAtCursor = (dataUrl) => {
-  if (!isEditing.value) {
-    isEditing.value = true;
-    nextTick(() => {
-      if (editDiv.value) {
-        editDiv.value.focus();
-        const img = document.createElement('img');
-        img.src = dataUrl;
-        img.className = 'inline-rich-img';
-        editDiv.value.appendChild(img);
-        
-        // 将光标移到图片后
-        const range = document.createRange();
-        range.setStartAfter(img);
-        range.setEndAfter(img);
-        const selection = window.getSelection();
-        if (selection) {
-          selection.removeAllRanges();
-          selection.addRange(range);
+const insertImageAtCursor = (dataUrl, targetEditor = null) => {
+  let targetDiv = targetEditor;
+
+  if (!targetDiv) {
+    if (showAddSub.value && subEditDiv.value) {
+      targetDiv = subEditDiv.value;
+    } else if (isEditing.value && editDiv.value) {
+      targetDiv = editDiv.value;
+    } else if (editDiv.value) {
+      isEditing.value = true;
+      nextTick(() => {
+        if (editDiv.value) {
+          editDiv.value.focus();
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          img.className = 'inline-rich-img';
+          editDiv.value.appendChild(img);
+
+          const range = document.createRange();
+          range.setStartAfter(img);
+          range.setEndAfter(img);
+          const selection = window.getSelection();
+          if (selection) {
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
         }
-      }
-    });
-  } else if (editDiv.value) {
+      });
+      return;
+    }
+  }
+
+  if (targetDiv) {
+    targetDiv.focus();
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
@@ -341,8 +365,7 @@ const insertImageAtCursor = (dataUrl) => {
       img.src = dataUrl;
       img.className = 'inline-rich-img';
       range.insertNode(img);
-      
-      // 将光标移到图片后
+
       range.setStartAfter(img);
       range.setEndAfter(img);
       selection.removeAllRanges();
@@ -351,8 +374,8 @@ const insertImageAtCursor = (dataUrl) => {
       const img = document.createElement('img');
       img.src = dataUrl;
       img.className = 'inline-rich-img';
-      editDiv.value.appendChild(img);
-      
+      targetDiv.appendChild(img);
+
       const range = document.createRange();
       range.setStartAfter(img);
       range.setEndAfter(img);
@@ -364,13 +387,13 @@ const insertImageAtCursor = (dataUrl) => {
   }
 };
 
-const processFiles = (files) => {
+const processFiles = (files, targetEditor = null) => {
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        insertImageAtCursor(event.target.result);
+        insertImageAtCursor(event.target.result, targetEditor);
       };
       reader.readAsDataURL(file);
     }
@@ -381,7 +404,10 @@ const handleDropLocal = (e) => {
   isHoveringDrag.value = false;
   const files = e.dataTransfer?.files;
   if (files && files.length > 0) {
-    processFiles(files);
+    const targetEditor = e.currentTarget.querySelector('.edit-rich-input:focus') ||
+                        (showAddSub.value ? subEditDiv.value : null) ||
+                        (isEditing.value ? editDiv.value : null);
+    processFiles(files, targetEditor);
   }
 };
 

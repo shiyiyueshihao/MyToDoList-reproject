@@ -12,7 +12,13 @@
     "core:window:allow-maximize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-start-dragging",
+    "core:window:allow-set-position",
+    "core:window:allow-current-monitor",
     "fs:default",
-    "opener:default"
+    "opener:default",
+    "autostart:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }

@@ -1,6 +1,9 @@
 import "./styles/style.css";
 import { createApp } from "vue";
 import App from "./App.vue";
+import i18n from "./i18n";
+import ElementPlus from 'element-plus';
+import 'element-plus/dist/index.css';
 
 // 禁用右键菜单
 document.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -16,5 +19,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-
-createApp(App).mount("#app");
+const app = createApp(App);
+app.use(i18n);
+app.use(ElementPlus);
+app.mount("#app");

@@ -42,8 +42,8 @@
   --bg-item: #1a1a1a; /* 稍微亮一点，增加对比 */
   --text-primary: #ffffff;
   --text-secondary: #a1a1aa;
-  --accent-color: #3f3f46;
-  --border-color: #27272a;
+  --accent-color: #38bdf8; /* 科技蓝色强调 */
+  --border-color: rgba(56, 189, 248, 0.2); /* 科技蓝边框 */
   --shadow-color: rgba(0, 0, 0, 0.9);
   --input-bg: #262626;
 }

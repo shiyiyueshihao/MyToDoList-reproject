@@ -1,24 +1,43 @@
 <template>
   <div class="todo-page-container">
     <!-- 代办列表区域 -->
-    <div class="todo-list-scroll">
+    <div class="todo-list-scroll" ref="taskListRef">
       <div v-if="todos.length === 0" class="empty-state">
         <div class="empty-icon">📝</div>
-        <p>暂无代办事项，点击下方按钮开始规划</p>
+        <p>{{ t('todo.empty') }}</p>
       </div>
-      <TodoItem 
-        v-for="todo in todos" 
-        :key="todo.id" 
-        :todo="todo" 
+      <TodoItem
+        v-for="todo in todos"
+        :key="todo.id"
+        :todo="todo"
         @delete-todo="deleteTodo"
         @enlarge-image="openImageModal"
       />
     </div>
 
     <!-- 悬浮添加按钮 -->
-    <button class="fab-add-btn" @click="showAddModal = true" title="新增代办">
+    <button class="fab-add-btn" ref="fabBtnRef" @click="showAddModal = true" :title="t('todo.addNew')">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
     </button>
+
+    <!-- Tour 引导 -->
+    <el-tour v-model="showTour" :mask="{ color: 'rgba(0, 0, 0, 0.6)' }">
+      <el-tour-step
+        :target="fabBtnRef"
+        :title="t('tour.addButton')"
+        :description="t('tour.addButtonDesc')"
+      />
+      <el-tour-step
+        :target="taskListRef"
+        :title="t('tour.taskList')"
+        :description="t('tour.taskListDesc')"
+      />
+      <el-tour-step
+        :target="settingsBtnRef"
+        :title="t('tour.settings')"
+        :description="t('tour.settingsDesc')"
+      />
+    </el-tour>
 
     <!-- 新增代办模态框 -->
     <Transition name="fade">
@@ -30,7 +49,7 @@
              :class="{ 'is-dragging': isDragging }">
           
           <div class="modal-header">
-            <h3>新增代办事项</h3>
+            <h3>{{ t('todo.addNewTitle') }}</h3>
             <button class="close-btn" @click="closeAddModal">×</button>
           </div>
 
@@ -40,17 +59,16 @@
               contenteditable="true"
               spellcheck="false"
               class="modal-rich-editor edit-rich-input"
-              placeholder="有什么新计划？可以直接拖入或粘贴图片到文字中间..."
+              :placeholder="t('todo.placeholder')"
               @paste="onPaste"
-              
+
               @dblclick="handleEditClick"
             ></div>
           </div>
 
           <div class="modal-footer">
-            <div class="drag-hint">支持图片拖拽</div>
             <button class="submit-btn" @click="addTodo">
-              确认添加
+              {{ t('todo.confirmAdd') }}
             </button>
           </div>
         </div>
@@ -68,8 +86,26 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useAppSettings } from '../composables/useAppSettings';
 import TodoItem from '../components/TodoItem.vue';
 import ImageModal from '../components/ImageModal.vue';
+
+const { t } = useI18n();
+const { settings, setTourSeen } = useAppSettings();
+
+// Tour 相关
+const showTour = ref(false);
+const fabBtnRef = ref<HTMLElement | null>(null);
+const taskListRef = ref<HTMLElement | null>(null);
+const settingsBtnRef = ref<HTMLElement | null>(null);
+
+// Tour 关闭时标记已查看
+watch(showTour, (val) => {
+  if (!val && settings.value.tourSeenVersion !== 'v1') {
+    setTourSeen('v1');
+  }
+});
 
 // IndexedDB 工具函数，用于替代 localStorage，避免 QuotaExceededError
 const DB_NAME = 'TodoAppDB';
@@ -390,18 +426,37 @@ onMounted(async () => {
       try {
         todos.value = JSON.parse(savedTodos);
         // 数据迁移后，为了释放 localStorage 空间可以将其移除（可选）
-        // localStorage.removeItem('my-todos-v2'); 
+        // localStorage.removeItem('my-todos-v2');
       } catch (e) {
         console.error('Failed to parse todos from localStorage:', e);
       }
     }
   }
-  
+
   setupNativeDragDrop();
+
+  // 检查是否需要显示 Tour
+  if (!settings.value.tourSeenVersion || settings.value.tourSeenVersion !== 'v1') {
+    setTimeout(() => {
+      // 通过 DOM 查询获取设置按钮
+      const settingsBtn = document.querySelector('.settings-btn') as HTMLElement;
+      if (settingsBtn) {
+        settingsBtnRef.value = settingsBtn;
+      }
+      showTour.value = true;
+    }, 500);
+  }
+
+  // 添加关闭前保存
+  window.addEventListener('beforeunload', () => {
+    saveTodosToDB(todos.value);
+  });
 });
 
 onUnmounted(() => {
   if (unlistenDragDrop) unlistenDragDrop();
+  // 卸载时也保存一次
+  saveTodosToDB(todos.value);
 });
 
 watch(todos, (newVal) => {
@@ -424,6 +479,7 @@ watch(todos, (newVal) => {
   flex: 1;
   overflow-y: auto;
   padding-right: 8px;
+  padding-bottom: 110px;
   mask-image: linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent);
 
   &::-webkit-scrollbar {

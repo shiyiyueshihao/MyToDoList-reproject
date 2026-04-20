@@ -6,7 +6,7 @@
         <img src="../assets/avatar.png" alt="Avatar" class="avatar-img" />
         <div class="avatar-glow"></div>
       </div>
-      <span class="app-title" data-tauri-drag-region>SHIYIYUE ToDoList</span>
+      <span class="app-title" data-tauri-drag-region>{{ t('app.title') }}</span>
     </div>
 
     <!-- 中间：空白区域用于拖拽 -->
@@ -15,34 +15,67 @@
     <!-- 右侧：窗口控制按钮 -->
     <div class="right-section">
       <!-- 主题设置按钮 -->
-      <div class="control-btn settings-btn" @click="showThemeMenu = !showThemeMenu" title="设置主题">
+      <div class="control-btn settings-btn" ref="settingsBtnRef" @click="showThemeMenu = !showThemeMenu" :title="t('titleBar.settings')">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="1"></circle>
           <circle cx="19" cy="12" r="1"></circle>
           <circle cx="5" cy="12" r="1"></circle>
         </svg>
       </div>
-      
+
       <!-- 主题切换菜单 -->
       <Transition name="slide-up">
         <div v-if="showThemeMenu" class="theme-menu" @mouseleave="showThemeMenu = false">
-          <div 
-            v-for="theme in themes" 
-            :key="theme.id" 
-            class="theme-option" 
-            @click="setTheme(theme.id)"
-            :class="{ active: currentTheme === theme.id }"
-          >
-            <div class="theme-dot" :style="{ background: theme.color }"></div>
-            <span>{{ theme.name }}</span>
+          <div class="menu-section">
+            <div class="menu-label">{{ t('titleBar.themes.tech') }}</div>
+            <div
+              v-for="theme in themes"
+              :key="theme.id"
+              class="theme-option"
+              @click="handleSetTheme(theme.id)"
+              :class="{ active: settings.theme === theme.id }"
+            >
+              <div class="theme-dot" :style="{ background: theme.color }"></div>
+              <span>{{ theme.name }}</span>
+            </div>
+          </div>
+
+          <div class="menu-divider"></div>
+
+          <div class="menu-section">
+            <div class="menu-label">{{ t('titleBar.language') }}</div>
+            <div
+              v-for="lang in languages"
+              :key="lang.code"
+              class="theme-option"
+              @click="handleSetLocale(lang.code)"
+              :class="{ active: settings.locale === lang.code }"
+            >
+              <span>{{ lang.name }}</span>
+            </div>
+          </div>
+
+          <div class="menu-divider"></div>
+
+          <div class="menu-section">
+            <div class="menu-label">{{ t('titleBar.autostart') }}</div>
+            <div
+              class="theme-option"
+              @click="toggleAutostart"
+            >
+              <div class="autostart-toggle" :class="{ active: autostartEnabled }">
+                <div class="toggle-slider"></div>
+              </div>
+              <span>{{ autostartEnabled ? '已启用' : '已禁用' }}</span>
+            </div>
           </div>
         </div>
       </Transition>
 
-      <div class="control-btn minimize" @click="minimizeWindow" title="最小化">
+      <div class="control-btn minimize" @click="minimizeWindow" :title="t('titleBar.minimize')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
       </div>
-      <div class="control-btn close" @click="closeWindow" title="关闭">
+      <div class="control-btn close" @click="closeWindow" :title="t('titleBar.close')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </div>
     </div>
@@ -50,36 +83,76 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { useI18n } from 'vue-i18n';
+import { useAppSettings } from '../composables/useAppSettings';
+
+const { t, locale } = useI18n();
+const { settings, setTheme, setLocale, setAutostartEnabled } = useAppSettings();
 
 const appWindow = ref(null);
 const showThemeMenu = ref(false);
-const currentTheme = ref('tech');
+const settingsBtnRef = ref(null);
+const autostartEnabled = ref(settings.value.autostartEnabled);
 
-const themes = [
-  { id: 'tech', name: '科技感', color: '#007aff' },
-  { id: 'minimal', name: '简约版', color: '#475569' },
-  { id: 'pink', name: '桃花粉', color: '#fb7185' },
-  { id: 'black', name: '纯黑版', color: '#222222' }
+const themes = computed(() => [
+  { id: 'tech', name: t('titleBar.themes.tech'), color: '#007aff' },
+  { id: 'minimal', name: t('titleBar.themes.minimal'), color: '#475569' },
+  { id: 'pink', name: t('titleBar.themes.pink'), color: '#fb7185' },
+  { id: 'black', name: t('titleBar.themes.black'), color: '#222222' }
+]);
+
+const languages = [
+  { code: 'zh-CN', name: '中文' },
+  { code: 'en-US', name: 'English' }
 ];
 
-const setTheme = (id) => {
-  currentTheme.value = id;
-  document.documentElement.setAttribute('data-theme', id);
-  localStorage.setItem('todo-theme', id);
+const handleSetTheme = (id) => {
+  setTheme(id);
   showThemeMenu.value = false;
 };
 
+const handleSetLocale = (code) => {
+  setLocale(code);
+  locale.value = code;
+  showThemeMenu.value = false;
+};
+
+const toggleAutostart = async () => {
+  if (window.__TAURI_INTERNALS__) {
+    try {
+      const { enable, disable, isEnabled } = await import('@tauri-apps/plugin-autostart');
+
+      if (autostartEnabled.value) {
+        await disable();
+        autostartEnabled.value = false;
+      } else {
+        await enable();
+        autostartEnabled.value = true;
+      }
+
+      setAutostartEnabled(autostartEnabled.value);
+    } catch (e) {
+      console.error('Failed to toggle autostart:', e);
+    }
+  }
+};
+
 onMounted(async () => {
-  const savedTheme = localStorage.getItem('todo-theme');
-  if (savedTheme) setTheme(savedTheme);
+  document.documentElement.setAttribute('data-theme', settings.value.theme);
+  locale.value = settings.value.locale;
 
   // 仅在 Tauri 环境下初始化窗口实例
   if (window.__TAURI_INTERNALS__) {
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
       appWindow.value = getCurrentWindow();
+
+      // 检查自启动状态
+      const { isEnabled } = await import('@tauri-apps/plugin-autostart');
+      autostartEnabled.value = await isEnabled();
+      setAutostartEnabled(autostartEnabled.value);
     } catch (e) {
       console.error('Failed to initialize Tauri window:', e);
     }
@@ -170,13 +243,14 @@ const closeWindow = async () => {
     }
 
     .app-title {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-primary);
-      letter-spacing: 1.2px;
-      font-family: 'JetBrains Mono', 'Fira Code', monospace; /* 科技感字体 */
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 1.5px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
       text-transform: uppercase;
-      opacity: 0.85;
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.5), 0 0 20px rgba(56, 189, 248, 0.3);
+      opacity: 1;
     }
   }
 
@@ -199,10 +273,29 @@ const closeWindow = async () => {
       border: 1px solid var(--border-color);
       border-radius: 10px;
       padding: 8px;
-      min-width: 120px;
+      min-width: 140px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
       z-index: 10000;
       backdrop-filter: blur(10px);
+
+      .menu-section {
+        padding: 4px 0;
+      }
+
+      .menu-label {
+        font-size: 10px;
+        color: var(--text-secondary);
+        padding: 4px 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+      }
+
+      .menu-divider {
+        height: 1px;
+        background: var(--border-color);
+        margin: 6px 0;
+      }
 
       .theme-option {
         display: flex;
@@ -234,6 +327,37 @@ const closeWindow = async () => {
         span {
           font-size: 12px;
           color: var(--text-primary);
+        }
+      }
+
+      .autostart-toggle {
+        width: 36px;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        position: relative;
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-color);
+
+        &.active {
+          background: var(--accent-color);
+          border-color: var(--accent-color);
+
+          .toggle-slider {
+            transform: translateX(16px);
+          }
+        }
+
+        .toggle-slider {
+          width: 16px;
+          height: 16px;
+          background: white;
+          border-radius: 50%;
+          position: absolute;
+          top: 1px;
+          left: 1px;
+          transition: transform 0.3s ease;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
       }
     }
